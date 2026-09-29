@@ -25,6 +25,15 @@ Delegates are mounted in declaration order. Set `mount: false`, `events: false`,
 or `info: false` to disable the corresponding behavior. The `info` option also
 accepts one tag or a list of tags.
 
+`on_mount/3` receives `params`, `session`, and `socket`, and returns the socket
+directly. Delegated `handle_event/3` and `handle_info/2` functions return the
+usual LiveView callback tuples.
+
+Application-owned `handle_event/3` and `handle_info/2` clauses are evaluated
+before LiveDelegate's generated catch-all clauses. Input that reaches those
+catch-all clauses must contain a registered event namespace or message tag;
+unmatched input fails fast.
+
 ## Handler
 
 Configure a path in each feature module:
@@ -51,5 +60,9 @@ The configured path provides these helpers:
 - `delegate_event/1` builds a colon-separated event name.
 - `delegate_dom_id/1` builds a hyphen-separated DOM ID.
 
-Message tuples are dispatched by their first element. Remaining elements are
-passed to the handler as a single value or tuple.
+Message tuples are dispatched by their first element. Their remaining elements
+are normalized before being passed to the handler:
+
+- `{tag}` becomes `{}`.
+- `{tag, value}` becomes `value`.
+- `{tag, first, second}` becomes `{first, second}`.

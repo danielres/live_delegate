@@ -1,18 +1,97 @@
 defmodule LiveDelegate do
   @moduledoc """
-  Generates LiveView event and message delegation for registered feature modules.
+  Split a Phoenix LiveView into smaller, composable modules.
 
-  Delegated events use a `"namespace:event"` name. Delegated process messages
-  use tuples whose first element is a registered tag; the remaining elements
-  are normalized into one payload passed to `handle_info/2`.
+  ## Parent modules
 
-  A module can declare its assign and event path to receive `delegate_assign/2`,
-  `delegate_assign/3`, `delegate_dom_id/1`, and `delegate_event/1`:
+  A parent module declares its submodules with `delegate/2`:
 
-      use LiveDelegate, path: [:ideas, :tools]
+      defmodule MyAppWeb.DashboardLive do
+        use MyAppWeb, :live_view
+        use LiveDelegate
 
-  Delegates are mounted in declaration order. Mounting is enabled by default
-  and can be disabled with `mount: false`.
+        alias MyAppWeb.DashboardLive.Projects
+
+        delegate(:projects, Projects)
+
+        def mount(params, session, socket) do
+          {:ok, socket |> delegate_mount(params, session)}
+        end
+      end
+
+  Submodules are mounted in declaration order.
+
+  ## Submodules
+
+  A submodule declares where it belongs with `path:`:
+
+      defmodule MyAppWeb.DashboardLive.Projects do
+        use LiveDelegate, path: [:projects]
+
+        def on_mount(_params, _session, socket) do
+          socket |> delegate_assign(%{items: []})
+        end
+
+        def handle_event("add", _params, socket) do
+          {:noreply, socket}
+        end
+      end
+
+  The path namespaces its assigns, events, and DOM IDs:
+
+      delegate_assign(socket, value)
+      delegate_event("add")       # "projects:add"
+      delegate_dom_id("form")     # "projects-form"
+
+  ## Nested submodules
+
+  A module can be both a submodule and a parent:
+
+      defmodule MyAppWeb.DashboardLive.Projects do
+        use LiveDelegate, path: [:projects]
+
+        alias MyAppWeb.DashboardLive.Projects.Filters
+
+        delegate(:filters, Filters)
+
+        def on_mount(params, session, socket) do
+          socket
+          |> delegate_assign(%{items: []})
+          |> delegate_mount(params, session)
+        end
+      end
+
+  The nested module declares its complete path:
+
+      defmodule MyAppWeb.DashboardLive.Projects.Filters do
+        use LiveDelegate, path: [:projects, :filters]
+
+        def on_mount(_params, _session, socket) do
+          socket |> delegate_assign(%{})
+        end
+      end
+
+  Its helpers now use the nested namespace:
+
+      delegate_event("change")    # "projects:filters:change"
+      delegate_dom_id("panel")    # "projects-filters-panel"
+
+  ## Messages and options
+
+  Use `info:` to route process messages by their first tuple element:
+
+      delegate(:notifications, Notifications,
+        events: false,
+        info: [:notification_received],
+        mount: false
+      )
+
+  For example, `{:notification_received, notification}` calls:
+
+      Notifications.handle_info(notification, socket)
+
+  Use `mount: false`, `events: false`, or `info: false` when a submodule does not
+  need that responsibility.
   """
 
   defmacro __using__(opts) do
