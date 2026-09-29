@@ -109,7 +109,22 @@ defmodule LiveDelegate do
   end
 
   @doc """
-  Assigns a value at the path configured by `use LiveDelegate`.
+  Assigns a value at the module's configured path.
+
+  Given:
+
+      use LiveDelegate, path: [:projects]
+
+  This:
+
+      socket |> delegate_assign(%{items: []})
+
+  is equivalent to:
+
+      socket |> assign(:projects, %{items: []})
+
+  With a nested path such as `[:projects, :filters]`, the value is assigned at
+  `socket.assigns.projects.filters`. The parent assign must already exist.
   """
   defmacro delegate_assign(socket, value) do
     path = configured_path!(__CALLER__)
@@ -117,7 +132,21 @@ defmodule LiveDelegate do
   end
 
   @doc """
-  Assigns a value below the path configured by `use LiveDelegate`.
+  Assigns a value below the module's configured path.
+
+  Given:
+
+      use LiveDelegate, path: [:projects]
+
+  This assigns the form under `socket.assigns.projects.form`:
+
+      socket |> delegate_assign(:form, form)
+
+  A list can be used to update more deeply nested values:
+
+      socket |> delegate_assign([:form, :status], :ready)
+
+  The configured assign and any intermediate maps must already exist.
   """
   defmacro delegate_assign(socket, relative_path, value) do
     path = configured_path!(__CALLER__)
@@ -131,7 +160,21 @@ defmodule LiveDelegate do
   end
 
   @doc """
-  Builds a DOM ID from the path configured by `use LiveDelegate`.
+  Builds a DOM ID from the module's configured path.
+
+  Given:
+
+      use LiveDelegate, path: [:projects]
+
+  This produces `id="projects-form"`:
+
+      <.form id={delegate_dom_id("form")} for={@form}>
+        ...
+      </.form>
+
+  Nested paths are joined with hyphens. With
+  `path: [:projects, :filters]`, `delegate_dom_id("panel")` returns
+  `"projects-filters-panel"`.
   """
   defmacro delegate_dom_id(value) do
     path = configured_path!(__CALLER__)
@@ -143,7 +186,21 @@ defmodule LiveDelegate do
   end
 
   @doc """
-  Builds an event name from the path configured by `use LiveDelegate`.
+  Builds a LiveView event name from the module's configured path.
+
+  Given:
+
+      use LiveDelegate, path: [:projects]
+
+  This button sends the `"projects:add"` event:
+
+      <button phx-click={delegate_event("add")}>
+        Add project
+      </button>
+
+  Nested paths produce nested event names. With
+  `path: [:projects, :filters]`, `delegate_event("change")` returns
+  `"projects:filters:change"`.
   """
   defmacro delegate_event(name) do
     path = configured_path!(__CALLER__)
