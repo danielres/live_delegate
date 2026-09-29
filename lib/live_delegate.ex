@@ -95,7 +95,8 @@ defmodule LiveDelegate do
   """
 
   defmacro __using__(opts) do
-    {path_imports, path_attribute} = path_configuration(opts)
+    opts = validate_options!(opts, [:path], __CALLER__)
+    {path_imports, path_attribute} = path_configuration(opts, __CALLER__)
 
     imports = [delegate: 2, delegate: 3] |> Keyword.merge(path_imports)
 
@@ -211,20 +212,27 @@ defmodule LiveDelegate do
     end
   end
 
-  defmacro delegate(name, module_ast, opts \\ []) when is_atom(name) do
+  defmacro delegate(name, module_ast, opts \\ []) do
+    caller = __CALLER__
+    validate_delegate_name!(name, caller)
+
+    opts =
+      validate_options!(
+        opts,
+        [events: true, info: [name], mount: true],
+        caller
+      )
+
     module = Macro.expand(module_ast, __CALLER__)
-    events? = Keyword.get(opts, :events, true)
-    mount? = Keyword.get(opts, :mount, true)
+    validate_delegate_module!(module, caller)
 
-    unless is_boolean(mount?) do
-      raise ArgumentError, "LiveDelegate mount option must be a boolean"
-    end
+    events? = Keyword.fetch!(opts, :events)
+    mount? = Keyword.fetch!(opts, :mount)
 
-    info_tags =
-      case Keyword.get(opts, :info, [name]) do
-        false -> []
-        tags -> List.wrap(tags)
-      end
+    validate_boolean_option!(:events, events?, caller)
+    validate_boolean_option!(:mount, mount?, caller)
+
+    info_tags = validate_info_option!(Keyword.fetch!(opts, :info), caller)
 
     quote bind_quoted: [
             name: name,
@@ -242,6 +250,18 @@ defmodule LiveDelegate do
       env.module
       |> Module.get_attribute(:live_delegates)
       |> Enum.reverse()
+
+    validate_unique!(Enum.map(delegates, &elem(&1, 0)), "delegate names", env)
+
+    validate_unique!(
+      for(
+        {_name, _module, _mount?, _events?, info_tags} <- delegates,
+        info_tag <- info_tags,
+        do: info_tag
+      ),
+      "info tags",
+      env
+    )
 
     if delegates == [] do
       quote do
@@ -309,7 +329,7 @@ defmodule LiveDelegate do
     end
   end
 
-  defp path_configuration(opts) do
+  defp path_configuration(opts, caller) do
     case Keyword.fetch(opts, :path) do
       :error ->
         {[],
@@ -318,14 +338,14 @@ defmodule LiveDelegate do
 
       {:ok, path} when is_list(path) and path != [] ->
         unless Enum.all?(path, &is_atom/1) do
-          raise ArgumentError, "LiveDelegate path must be a non-empty list of atoms"
+          configuration_error!(caller, "path must be a non-empty list of atoms")
         end
 
         {[delegate_assign: 2, delegate_assign: 3, delegate_dom_id: 1, delegate_event: 1],
          quote(do: @live_delegate_path(unquote(path)))}
 
       {:ok, _path} ->
-        raise ArgumentError, "LiveDelegate path must be a non-empty list of atoms"
+        configuration_error!(caller, "path must be a non-empty list of atoms")
     end
   end
 
@@ -349,5 +369,61 @@ defmodule LiveDelegate do
           end)
       end
     end
+  end
+
+  defp validate_options!(opts, valid_options, caller) do
+    Keyword.validate!(opts, valid_options)
+  rescue
+    error in ArgumentError -> configuration_error!(caller, Exception.message(error))
+  end
+
+  defp validate_delegate_name!(name, _caller) when is_atom(name), do: :ok
+
+  defp validate_delegate_name!(name, caller) do
+    configuration_error!(caller, "delegate name must be an atom, got: #{inspect(name)}")
+  end
+
+  defp validate_delegate_module!(module, _caller) when is_atom(module), do: :ok
+
+  defp validate_delegate_module!(module, caller) do
+    configuration_error!(caller, "delegate module must be a module, got: #{inspect(module)}")
+  end
+
+  defp validate_boolean_option!(_name, value, _caller) when is_boolean(value), do: :ok
+
+  defp validate_boolean_option!(name, value, caller) do
+    configuration_error!(caller, "#{name} must be a boolean, got: #{inspect(value)}")
+  end
+
+  defp validate_info_option!(false, _caller), do: []
+  defp validate_info_option!(tag, _caller) when is_atom(tag), do: [tag]
+
+  defp validate_info_option!(tags, caller) when is_list(tags) do
+    if Enum.all?(tags, &is_atom/1) do
+      tags
+    else
+      configuration_error!(caller, "info must be false, an atom, or a list of atoms")
+    end
+  end
+
+  defp validate_info_option!(_value, caller) do
+    configuration_error!(caller, "info must be false, an atom, or a list of atoms")
+  end
+
+  defp validate_unique!(values, label, caller) do
+    duplicates =
+      values
+      |> Enum.frequencies()
+      |> Enum.filter(fn {_value, count} -> count > 1 end)
+      |> Enum.map(fn {value, _count} -> value end)
+      |> Enum.sort()
+
+    if duplicates != [] do
+      configuration_error!(caller, "duplicate #{label}: #{inspect(duplicates)}")
+    end
+  end
+
+  defp configuration_error!(caller, message) do
+    raise ArgumentError, "#{inspect(caller.module)}: #{message}"
   end
 end

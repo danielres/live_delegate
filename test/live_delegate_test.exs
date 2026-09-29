@@ -73,4 +73,68 @@ defmodule LiveDelegateTest do
              {:second, :params, :session}
            ] = MountDispatcher.mount_delegates([], :params, :session)
   end
+
+  test "rejects unknown options" do
+    assert_raise ArgumentError, fn ->
+      compile_module("use LiveDelegate, unknown: true")
+    end
+
+    assert_raise ArgumentError, fn ->
+      compile_module("""
+      use LiveDelegate
+      delegate(:child, LiveDelegate.TestSupport.Recipient, unknown: true)
+      """)
+    end
+  end
+
+  test "rejects invalid delegate values" do
+    declarations = [
+      ~s|delegate("child", LiveDelegate.TestSupport.Recipient)|,
+      ~s|delegate(:child, "not a module")|,
+      ~s|delegate(:child, LiveDelegate.TestSupport.Recipient, events: :yes)|,
+      ~s|delegate(:child, LiveDelegate.TestSupport.Recipient, mount: :yes)|,
+      ~s|delegate(:child, LiveDelegate.TestSupport.Recipient, info: [:valid, "invalid"])|
+    ]
+
+    for declaration <- declarations do
+      assert_raise ArgumentError, fn ->
+        compile_module("""
+        use LiveDelegate
+        #{declaration}
+        """)
+      end
+    end
+  end
+
+  test "rejects duplicate delegate names and info tags" do
+    assert_raise ArgumentError, fn ->
+      compile_module("""
+      use LiveDelegate
+      delegate(:child, LiveDelegate.TestSupport.Recipient, info: false)
+      delegate(:child, LiveDelegate.TestSupport.Recipient, info: false)
+      """)
+    end
+
+    assert_raise ArgumentError, fn ->
+      compile_module("""
+      use LiveDelegate
+      delegate(:first, LiveDelegate.TestSupport.Recipient, info: [:shared])
+      delegate(:second, LiveDelegate.TestSupport.Recipient, info: [:shared])
+      """)
+    end
+  end
+
+  defp compile_module(body) do
+    module =
+      Module.concat(
+        LiveDelegate.TestSupport,
+        "Dynamic#{System.unique_integer([:positive])}"
+      )
+
+    Code.compile_string("""
+    defmodule #{inspect(module)} do
+      #{body}
+    end
+    """)
+  end
 end
