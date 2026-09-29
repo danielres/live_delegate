@@ -2,6 +2,7 @@ defmodule LiveDelegateTest do
   use ExUnit.Case, async: true
 
   alias LiveDelegate.TestSupport.BareHandler
+  alias LiveDelegate.TestSupport.DisabledMountDispatcher
   alias LiveDelegate.TestSupport.Dispatcher
   alias LiveDelegate.TestSupport.MountDispatcher
   alias LiveDelegate.TestSupport.RootHandler
@@ -72,6 +73,10 @@ defmodule LiveDelegateTest do
              {:first, :params, :session},
              {:second, :params, :session}
            ] = MountDispatcher.mount_delegates([], :params, :session)
+  end
+
+  test "returns the socket unchanged when every mount is disabled" do
+    assert :socket = DisabledMountDispatcher.mount_delegates(:socket, :params, :session)
   end
 
   test "rejects unknown options" do

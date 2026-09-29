@@ -19,7 +19,9 @@ defmodule LiveDelegate do
         end
       end
 
-  Submodules are mounted in declaration order.
+  Submodules are mounted in declaration order. Each submodule's `on_mount/3`
+  returns the updated socket directly. When every submodule uses `mount: false`,
+  `delegate_mount/3` returns the socket unchanged.
 
   ## Submodules
 
@@ -285,16 +287,11 @@ defmodule LiveDelegate do
         end
 
       mount_function =
-        if mount_modules == [] do
-          quote do
-          end
-        else
-          quote do
-            defp delegate_mount(socket, params, session) do
-              Enum.reduce(unquote(mount_modules), socket, fn module, socket ->
-                module.on_mount(params, session, socket)
-              end)
-            end
+        quote do
+          defp delegate_mount(socket, params, session) do
+            Enum.reduce(unquote(mount_modules), socket, fn module, socket ->
+              module.on_mount(params, session, socket)
+            end)
           end
         end
 
