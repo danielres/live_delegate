@@ -8,7 +8,9 @@ defmodule LiveDelegate.MixProject do
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       description: "Composable event, message, mount, and assign delegation for Phoenix LiveView",
-      deps: deps()
+      deps: deps(),
+      package: package(),
+      source_url: "https://github.com/danielres/live_delegate"
     ]
   end
 
@@ -20,6 +22,13 @@ defmodule LiveDelegate.MixProject do
   defp deps do
     [
       {:phoenix_live_view, "~> 1.2.0"}
+    ]
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/danielres/live_delegate"}
     ]
   end
 end
