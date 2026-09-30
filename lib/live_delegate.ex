@@ -120,7 +120,7 @@ defmodule LiveDelegate do
     opts = validate_options!(opts, [:path], __CALLER__)
     {path_imports, path_attribute} = path_configuration(opts, __CALLER__)
 
-    imports = [delegate: 2, delegate: 3] |> Keyword.merge(path_imports)
+    imports = [delegate: 2, delegate: 3, delegate_mount: 3] |> Keyword.merge(path_imports)
 
     quote do
       import unquote(__MODULE__), only: unquote(imports)
@@ -234,6 +234,34 @@ defmodule LiveDelegate do
     end
   end
 
+  @doc """
+  Mounts the module's delegated submodules.
+
+  Call this from the parent module's `mount/3` callback:
+
+      def mount(params, session, socket) do
+        {:ok, delegate_mount(socket, params, session)}
+      end
+
+  Each delegated submodule whose `mount:` option is enabled receives the same
+  `params` and `session`. Submodules are called in declaration order, with each
+  receiving the socket returned by the preceding submodule. Their `on_mount/3`
+  callbacks must return the updated socket directly, not an `{:ok, socket}` tuple.
+
+  Set `mount: false` when a delegated submodule has no `on_mount/3` callback,
+  or when you want to prevent its `on_mount/3` callback from being called:
+
+      delegate(:notifications, Notifications, mount: false)
+
+  If mounting is disabled for every delegated submodule, this returns the
+  original socket unchanged.
+  """
+  defmacro delegate_mount(socket, params, session) do
+    quote do
+      __live_delegate_mount__(unquote(socket), unquote(params), unquote(session))
+    end
+  end
+
   defmacro delegate(name, module_ast, opts \\ []) do
     caller = __CALLER__
     validate_delegate_name!(name, caller)
@@ -308,7 +336,7 @@ defmodule LiveDelegate do
 
       mount_function =
         quote do
-          defp delegate_mount(socket, params, session) do
+          defp __live_delegate_mount__(socket, params, session) do
             Enum.reduce(unquote(mount_modules), socket, fn module, socket ->
               module.on_mount(params, session, socket)
             end)

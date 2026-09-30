@@ -7,6 +7,10 @@ defmodule LiveDelegateTest do
   alias LiveDelegate.TestSupport.MountDispatcher
   alias LiveDelegate.TestSupport.RootHandler
 
+  test "exports delegate_mount/3 as part of the public macro API" do
+    assert macro_exported?(LiveDelegate, :delegate_mount, 3)
+  end
+
   test "use LiveDelegate does not generate dispatchers without delegates" do
     refute function_exported?(BareHandler, :handle_event, 3)
     refute function_exported?(BareHandler, :handle_info, 2)
