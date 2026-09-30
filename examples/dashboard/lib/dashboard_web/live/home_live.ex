@@ -2,8 +2,10 @@ defmodule DashboardWeb.HomeLive do
   use DashboardWeb, :live_view
   use LiveDelegate
   alias DashboardWeb.HomeLive.Projects
+  alias DashboardWeb.HomeLive.Users
 
   delegate(:projects, Projects)
+  delegate(:users, Users)
 
   @impl true
   def mount(params, session, socket) do
@@ -15,10 +17,17 @@ defmodule DashboardWeb.HomeLive do
   def render(assigns) do
     ~H"""
     <Layouts.app flash={@flash}>
-      <.section>
-        <:title>Projects</:title>
-        <Projects.render projects={@projects} />
-      </.section>
+      <div class="space-y-4">
+        <.section>
+          <:title>Projects</:title>
+          <Projects.render projects={@projects} />
+        </.section>
+
+        <.section>
+          <:title>Users</:title>
+          <Users.render users={@users} />
+        </.section>
+      </div>
     </Layouts.app>
     """
   end
