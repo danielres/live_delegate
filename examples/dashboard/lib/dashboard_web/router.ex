@@ -17,7 +17,7 @@ defmodule DashboardWeb.Router do
   scope "/", DashboardWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live "/", HomeLive
   end
 
   # Other scopes may use custom stacks.
