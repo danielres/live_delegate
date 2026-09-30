@@ -11,9 +11,14 @@ defmodule LiveDelegate do
         use LiveDelegate
 
         alias MyAppWeb.DashboardLive.Projects
+        alias MyAppWeb.DashboardLive.Users
 
+        # Mount order follows declaration order: Users, then Projects.
+        delegate(:users, Users)
         delegate(:projects, Projects)
 
+        # A single call to delegate_mount/3 mounts the submodules, 
+        # calling Users.on_mount/3 then Projects.on_mount/3.
         def mount(params, session, socket) do
           {:ok, socket |> delegate_mount(params, session)}
         end
@@ -24,15 +29,21 @@ defmodule LiveDelegate do
   `delegate_mount/3` runs the `on_mount/3` callback of each delegated submodule
   whose `mount:` option is enabled:
 
+      # In parent module:
       def mount(params, session, socket) do
         {:ok, delegate_mount(socket, params, session)}
+      end
+
+      # In submodules:
+      def on_mount(params, session, socket) do
+        ...
       end
 
   Delegated submodules are mounted in declaration order. Each submodule receives
   the same `params` and `session`, along with the socket returned by the preceding
   submodule.
 
-  Unlike `Phoenix.LiveView.mount/3`, a delegated submodule's `on_mount/3`
+  Unlike `c:Phoenix.LiveView.mount/3`, a delegated submodule's `on_mount/3`
   callback must return the updated socket directly, not an `{:ok, socket}` tuple.
 
   Set `mount: false` when a delegated submodule has no `on_mount/3` callback,
