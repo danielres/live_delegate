@@ -40,6 +40,7 @@ defmodule Dashboard.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
+      {:live_delegate, path: "../.."},
       {:phoenix, "~> 1.8.14"},
       {:phoenix_html, "~> 4.1"},
       {:phoenix_live_reload, "~> 1.2", only: :dev},
