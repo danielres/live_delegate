@@ -19,9 +19,29 @@ defmodule LiveDelegate do
         end
       end
 
-  Submodules are mounted in declaration order. Each submodule's `on_mount/3`
-  returns the updated socket directly. When every submodule uses `mount: false`,
-  `delegate_mount/3` returns the socket unchanged.
+  ## Mounting delegated submodules
+
+  `delegate_mount/3` runs the `on_mount/3` callback of each delegated submodule
+  whose `mount:` option is enabled:
+
+      def mount(params, session, socket) do
+        {:ok, delegate_mount(socket, params, session)}
+      end
+
+  Delegated submodules are mounted in declaration order. Each submodule receives
+  the same `params` and `session`, along with the socket returned by the preceding
+  submodule.
+
+  Unlike `Phoenix.LiveView.mount/3`, a delegated submodule's `on_mount/3`
+  callback must return the updated socket directly, not an `{:ok, socket}` tuple.
+
+  Set `mount: false` when a delegated submodule has no `on_mount/3` callback,
+  or when you want to prevent its `on_mount/3` callback from being called:
+
+      delegate(:notifications, Notifications, mount: false)
+
+  If mounting is disabled for every delegated submodule, `delegate_mount/3`
+  returns the original socket unchanged.
 
   ## Submodules
 
