@@ -4,7 +4,7 @@ defmodule LiveDelegate.MixProject do
   def project do
     [
       app: :live_delegate,
-      version: "0.1.1",
+      version: "0.1.2",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       description: "Composable event, message, mount, and assign delegation for Phoenix LiveView",
